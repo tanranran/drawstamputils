@@ -77,7 +77,7 @@
           <label
             >圆形边框宽度 (mm): <input type="number" step="0.1" v-model.number="circleBorderWidth"
           /></label>
-          <label>圆形边框颜色: <input type="color" v-model="primaryColor" /></label>
+          <label>印章颜色: <input type="color" v-model="primaryColor" /></label>
         </div>
       </div>
 
@@ -159,11 +159,11 @@
               <input
                 type="range"
                 v-model.number="company.textDistributionFactor"
-                min="1"
+                min="0"
                 max="50"
-                step="0.5"
+                step="0.1"
               />
-              <span>{{ company.textDistributionFactor.toFixed(1) }}</span>
+              <span>{{ company.textDistributionFactor.toFixed(2) }}</span>
             </label>
             <label>
               边距 (mm):
@@ -182,6 +182,24 @@
                 step="0.01"
               />
               <span>{{ company.adjustEllipseTextFactor.toFixed(2) }}</span>
+            </label>
+            <label>
+              开始角度:
+              <input
+                type="range"
+                v-model.number="company.startAngle"
+                min="-6.5"
+                max="6.5"
+                step="0.01"
+              />
+              <span>{{ company.startAngle ? (company.startAngle * 180 / Math.PI).toFixed(0) : 0 }}°</span>
+            </label>
+            <label>
+              旋转方向:
+              <select v-model="company.rotateDirection">
+                <option value="clockwise">顺时针</option>
+                <option value="counterclockwise">逆时针</option>
+              </select>
             </label>
           </div>
           <button class="add-button" @click="addNewCompany">添加新行</button>
@@ -423,53 +441,73 @@
           </label>
         </div>
       </div>
-
+      <div class="control-group">
+    <div class="group-header" @click="toggleGroup('images')">
+      <h3>图片列表设置</h3>
+      <span class="expand-icon" :class="{ 'expanded': expandedGroups.images }">▼</span>
+    </div>
+    <div class="group-content" v-show="expandedGroups.images">
+      <div class="image-list">
+        <div v-for="(image, index) in imageList" :key="index" class="image-item">
+          <div class="image-header">
+            <span>图片 {{ index + 1 }}</span>
+            <button class="small-button delete-button" @click="removeImage(index)">删除</button>
+          </div>
+          <div class="image-preview" v-if="image.imageUrl">
+            <img :src="image.imageUrl" alt="预览" />
+          </div>
+          <label>
+            选择图片:
+            <input type="file" @change="(e) => handleImageUpload(e, index)" accept="image/*" />
+          </label>
+          <label>
+            图片宽度 (mm):
+            <input type="number" v-model.number="image.imageWidth" min="1" max="100" step="0.5" />
+          </label>
+          <label>
+            图片高度 (mm):
+            <input type="number" v-model.number="image.imageHeight" min="1" max="100" step="0.5" />
+          </label>
+          <label>
+            水平位置 (mm):
+            <input type="number" v-model.number="image.positionX" min="-20" max="20" step="0.5" />
+          </label>
+          <label>
+            垂直位置 (mm):
+            <input type="number" v-model.number="image.positionY" min="-20" max="20" step="0.5" />
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="image.keepAspectRatio" />
+            保持宽高比
+          </label>
+        </div>
+      </div>
+      <button class="add-button" @click="addNewImage">添加新图片</button>
+    </div>
+  </div>
       <!-- 五角星设置 -->
       <div class="control-group">
         <div class="group-header" @click="toggleGroup('star')">
-          <h3>五角星/图片设置</h3>
+          <h3>五角星设置</h3>
           <span class="expand-icon" :class="{ 'expanded': expandedGroups.star }">▼</span>
         </div>
         <div class="group-content" v-show="expandedGroups.star">
           <label class="checkbox-label">
             <input type="checkbox" v-model="shouldDrawStar" />
-            绘制五角星/图片
-          </label>
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="useStarImage" />
-            使用图片
+            绘制五角星
           </label>
           <div v-if="shouldDrawStar">
-            <div v-if="useStarImage">
-              <label>
-                选择图片:
-                <input type="file" @change="handleStarImageUpload" accept="image/*" />
-              </label>
-              <label>
-                图片宽度 (mm):
-                <input type="number" v-model.number="starImageWidth" min="1" max="20" step="0.5" />
-              </label>
-              <label>
-                图片高度 (mm):
-                <input type="number" v-model.number="starImageHeight" min="1" max="20" step="0.5" />
-              </label>
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="keepAspectRatio" />
-                保持宽高比
-              </label>
-            </div>
-            <label v-else>
-              五角星直径 (mm):
-              <input type="number" v-model.number="starDiameter" step="0.1" />
-            </label>
             <label>
-              垂直位置 (mm):
-              <input type="number" v-model.number="starPositionY" min="-10" max="10" step="0.1" />
+            五角星直径 (mm):
+            <input type="number" v-model.number="starDiameter" step="0.1" />
+          </label>
+          <label>
+            垂直位置 (mm):
+            <input type="number" v-model.number="starPositionY" min="-10" max="10" step="0.1" />
             </label>
           </div>
         </div>
       </div>
-
       <!-- 防伪纹路设置 -->
       <div class="control-group">
         <div class="group-header" @click="toggleGroup('security')">
@@ -484,11 +522,11 @@
           <button @click="drawStamp(true, false)">刷新纹路</button>
           <label
             >纹路数量:
-            <input type="range" v-model.number="securityPatternCount" min="1" max="20" step="1"
+            <input type="range" v-model.number="securityPatternCount" min="1" max="100" step="1"
           /></label>
           <label
             >纹路长度 (mm):
-            <input type="range" v-model.number="securityPatternLength" min="0.1" max="20" step="0.1"
+            <input type="range" v-model.number="securityPatternLength" min="0.1" max="100" step="0.1"
           /></label>
           <label
             >纹路宽度 (mm):
@@ -538,7 +576,7 @@
             <input type="range" v-model.number="roughEdgePoints" min="100" max="1000" step="10" />
             <span>{{ roughEdgePoints }}</span>
           </label>
-          <button @click="drawStamp(false, true)">刷新毛边</button>
+          <button @click="drawStamp(false, false, true)">刷新毛边</button>
         </div>
       </div>
 
@@ -626,22 +664,46 @@
 
       <canvas ref="stampCanvas" width="600" height="600"></canvas>
     </div>
+
+    <!-- 添加模板列表面板 -->
+    <div class="template-panel">
+      <div class="template-header">
+        <h3>常用模板</h3>
+        <button class="add-template" @click="saveCurrentAsTemplate">
+          <span>+</span> 保存当前为模板
+        </button>
+      </div>
+      
+      <div class="template-list">
+        <!-- 默认模板 -->
+        <div class="template-category">
+          <h4>默认模板</h4>
+          <div v-for="(template, index) in defaultTemplates" 
+               :key="'default-' + index" 
+               class="template-item"
+               :class="{ 'active': currentTemplateIndex === (-1 - index) }"
+               @click="loadDefaultTemplate(template)">
+            <div class="template-preview">
+              <img :src="template.preview" alt="模板预览" />
+            </div>
+            <div class="template-info">
+              <span class="template-name">{{ template.name }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import {
-  DrawStampUtils,
-  IRoughEdge,
-  type ICode,
-  type ICompany,
-  type IDrawStar,
-  type IInnerCircle,
-  type ISecurityPattern,
-  type IStampType,
-  type ITaxNumber
-} from './DrawStampUtils'
+import {DrawStampUtils} from './DrawStampUtils'
 import { getSystemFonts } from './utils/fontUtils'
+import contractStamp1 from './assets/templates/contractStamp1.json'
+import companyStamp1 from './assets/templates/companyStamp1.json'
+import companyStamp2 from './assets/templates/companyStamp2.json'
+import { ICode, ICompany, IDrawImage, IDrawStampConfig, IDrawStar, IInnerCircle, IRoughEdge, ISecurityPattern, IStampType, ITaxNumber } from './DrawStampTypes'
+
 
 const editorControls = ref<HTMLDivElement | null>(null)
 const stampCanvas = ref<HTMLCanvasElement | null>(null)
@@ -684,7 +746,7 @@ const adjustEllipseText = ref(false)
 const adjustEllipseTextFactor = ref(0.5)
 // 文字边距，控制公司名称文字距离椭圆边缘的距离（单位：毫米）
 const textMarginMM = ref(1) // 默认值为1mm
-// 编码边距，控制印章编码距离椭圆边缘的距离（单位��毫米）
+// 编码边距，控制印章编码距离椭圆边缘的距离（单位毫米）
 const codeMarginMM = ref(1) // 默认值为1mm
 // 编码分布因子，控制印章编码在椭圆下方的分布范围
 const codeDistributionFactor = ref(20) // 默认值可以根据需要调整
@@ -714,7 +776,7 @@ const securityPatternDensity = ref(0.5)
 const securityPatternWidth = ref(0.2) // 纹路宽度，单位为毫米
 const securityPatternColor = ref('#FF0000')
 const securityPatternCount = ref(5) // 防伪纹路数量
-const securityPatternLength = ref(2) // 纹路长度，单���为毫米
+const securityPatternLength = ref(2) // 纹路长度，单为毫米
 const showFullRuler = ref(false)
 const shouldDrawStar = ref(false) // 默认绘制五角星
 const taxNumberCompression = ref(1) // 税号文字宽度缩放比例
@@ -739,7 +801,7 @@ const showLegalDialog = ref(false) // 是否显示法律提示弹窗
 // 添加印章类型列表的响式数据
 const stampTypeList = ref<IStampType[]>([
   {
-    stampType: '发票专用章',
+    stampType: '印章类型',
     fontHeight: 4.6,
     fontFamily: 'SimSun',
     compression: 0.75,
@@ -762,7 +824,9 @@ const companyList = ref<ICompany[]>([
     fontWeight: 'normal',
     shape: 'ellipse',
     adjustEllipseText: false,
-    adjustEllipseTextFactor: 0.5
+    adjustEllipseTextFactor: 0.5,
+    startAngle: 0,
+    rotateDirection: "counterclockwise"
   }
 ])
 // 添加新的响应式变量
@@ -785,8 +849,39 @@ const innerCircleList = ref<IInnerCircle[]>([
     innerCircleLineRadiusY: 12
   }
 ])
-
 const templateFileInput = ref<HTMLInputElement | null>(null)
+// 添加图片列表的响应式数据
+const imageList = ref<IDrawImage[]>([{
+  imageUrl: '',
+  imageWidth: 10,
+  imageHeight: 10,
+  positionX: 0,
+  positionY: 0,
+  keepAspectRatio: true
+}])
+
+// 添加新图片
+const addNewImage = () => {
+  console.log("add new image", imageList.value)
+  if(imageList.value === undefined || imageList.value === null) {
+    imageList.value = []
+  }
+  if(imageList.value.length < 10) {
+    imageList.value.push({
+      imageUrl: '',
+      imageWidth: 10,
+      imageHeight: 10,
+      positionX: 0,
+      positionY: 0,
+      keepAspectRatio: true
+    })
+  }
+}
+
+// 删除图片
+const removeImage = (index: number) => {
+  imageList.value.splice(index, 1)
+}
 
 // 保存模板
 const saveAsTemplate = () => {
@@ -850,20 +945,18 @@ const loadTemplate = (event: Event) => {
 }
 
 // 修改图片上传处理函数
-const handleStarImageUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement;
+const handleImageUpload = (event: Event, index: number) => {
+  const target = event.target as HTMLInputElement
   if (target.files && target.files[0]) {
-    const file = target.files[0];
-    const reader = new FileReader();
+    const file = target.files[0]
+    const reader = new FileReader()
     reader.onload = (e) => {
       if (e.target?.result) {
-        const imageUrl = e.target.result as string;
-        // 使用新方法更新图片
-        drawStampUtils.updateStarImage(imageUrl);
-        drawStamp();
+        imageList.value[index].imageUrl = e.target.result as string
+        drawStamp()
       }
-    };
-    reader.readAsDataURL(file);
+    }
+    reader.readAsDataURL(file)
   }
 }
 
@@ -909,7 +1002,9 @@ const addNewCompany = () => {
     fontWeight: 'normal',
     shape: 'ellipse',
     adjustEllipseText: false,
-    adjustEllipseTextFactor: 0.5
+    adjustEllipseTextFactor: 0.5,
+    startAngle: 0,
+    rotateDirection: "counterclockwise"
   })
 }
 
@@ -935,9 +1030,9 @@ const initDrawStampUtils = () => {
   drawStampUtils = new DrawStampUtils(stampCanvas.value, MM_PER_PIXEL)
 }
 
-const drawStamp = (refreshSecurityPattern: boolean = false, refreshOld: boolean = false) => {
+const drawStamp = (refreshSecurityPattern: boolean = false, refreshOld: boolean = false, refreshRoughEdge: boolean = false) => {
   // 使用drawstamputils进行绘制
-  drawStampUtils.refreshStamp(refreshSecurityPattern, refreshOld)
+  drawStampUtils.refreshStamp(refreshSecurityPattern, refreshOld, refreshRoughEdge)
 }
 
 
@@ -1061,7 +1156,8 @@ const updateDrawConfigs = () => {
   drawConfigs.companyList = companyList.value
   // 更新内圈列表
   drawConfigs.innerCircleList = innerCircleList.value
-
+  // 更新图片列表
+  drawConfigs.imageList = imageList.value
 
   drawStamp()
 }
@@ -1167,6 +1263,9 @@ const restoreDrawConfigs = () => {
   outThinCircleLineWidth.value = drawConfigs.outThinCircle.innerCircleLineWidth
   outThinCircleWidth.value = drawConfigs.outThinCircle.innerCircleLineRadiusX
   outThinCircleHeight.value = drawConfigs.outThinCircle.innerCircleLineRadiusY
+
+  // 图片列表
+  imageList.value = drawConfigs.imageList || []
 }
 
 // 添加系统字体列表
@@ -1266,7 +1365,8 @@ watch(
     starImageWidth,
     starImageHeight,
     keepAspectRatio,
-    innerCircleList
+    innerCircleList,
+    imageList
   ],
   () => {
     updateDrawConfigs()
@@ -1300,7 +1400,7 @@ const stampTypePresets = ref<StampTypePreset[]>([
   },
   {
     id: 'invoice',
-    name: '发票专用章',
+    name: '印章类型',
     text: '发票专章\n增值税专用',
     fontSize: 4.2,
     letterSpacing: 0,
@@ -1386,494 +1486,108 @@ const expandedGroups = ref({
   security: false,
   roughEdge: false,
   aging: false,
-  innerCircle: false
+  innerCircle: false,
+  images: false // 新增图片列表设置
 })
 
 // 切换组的展开/折叠状态
 const toggleGroup = (groupName: string) => {
   expandedGroups.value[groupName] = !expandedGroups.value[groupName]
 }
+
+// 添加模板相关的类型定义
+interface Template {
+  name: string;
+  preview: string;
+  config: IDrawStampConfig;
+}
+
+// 添加模板相关的响应式数据
+const currentTemplateIndex = ref(-1)
+
+// 保存当前设置为模板
+const saveCurrentAsTemplate = async () => {
+  const name = prompt('请输入模板名称')
+  if (!name) return
+  // 保存到本地存储
+  saveTemplatesToStorage()
+}
+
+// 加载模板
+const loadDefaultTemplate = (template: Template) => {
+  try {
+    const newConfig = JSON.parse(JSON.stringify(template.config)) as IDrawStampConfig
+    newConfig.ruler.showRuler = true
+    newConfig.ruler.showFullRuler = true
+    newConfig.ruler.showSideRuler = true
+    newConfig.ruler.showCrossLine = true
+    newConfig.ruler.showCurrentPositionText = true
+    newConfig.ruler.showDashLine = true
+    newConfig.company.startAngle = template.config.company.startAngle
+    newConfig.company.rotateDirection = template.config.company.rotateDirection
+
+    console.log("load template", template, newConfig)
+    // 设置新的配置
+    drawStampUtils.setDrawConfigs(newConfig)
+    // 恢复界面显示
+    restoreDrawConfigs()
+    // 刷新印章显示
+    drawStamp()
+    // 更新当前选中的模板索引（使用负数表示默认模板）
+    currentTemplateIndex.value = -1 - defaultTemplates.findIndex(t => t === template)
+  } catch (error) {
+    console.error('加载默认模板失败:', error)
+    alert('加载默认模板失败')
+  }
+}
+
+// 保存模板列表到本地存储
+const saveTemplatesToStorage = () => {
+  localStorage.setItem('stampTemplates', JSON.stringify(templateList.value))
+}
+
+// 从本地存储加载模板列表
+const loadTemplatesFromStorage = () => {
+  // 生成默认模板的预览图
+  defaultTemplates.forEach(async (template) => {
+    // 临时创建一个 canvas 生成预览图
+    const tempCanvas = document.createElement('canvas')
+    tempCanvas.width = 400
+    tempCanvas.height = 400
+    const tempDrawStampUtils = new DrawStampUtils(tempCanvas, MM_PER_PIXEL)
+    template.config.ruler.showRuler = false;
+    // 设置模板配置
+    tempDrawStampUtils.setDrawConfigs(template.config)
+    tempDrawStampUtils.refreshStamp()
+    
+    // 生成预览图
+    template.preview = tempCanvas.toDataURL('image/png')
+  })
+}
+
+// 在组件挂载时加载保存的模板
+onMounted(() => {
+  loadTemplatesFromStorage()
+})
+
+// 添加默认模板的类型定义和数据
+const defaultTemplates: Template[] = [
+  {
+    name: '合同印章',
+    preview: '',
+    config: contractStamp1 as IDrawStampConfig
+  },
+  {
+    name: '公司印章1',
+    preview: '',
+    config: companyStamp1 as IDrawStampConfig
+  }, {
+    name: '公司印章2',
+    preview: '',
+    config: companyStamp2 as IDrawStampConfig
+  }
+]
+
 </script>
 <style scoped>
-.container {
-  display: flex;
-  height: 90vh;
-  overflow: hidden;
-  gap: 0;
-  padding-top: 140px; /* 根据免责声明的实际高度调整 */
-}
-
-.editor-controls {
-  width: 400px;
-  padding: 25px;
-  background-color: #f5f5f5;
-  overflow-y: scroll;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  scrollbar-width: thin;
-  scrollbar-color: #888 #f5f5f5;
-}
-
-.editor-controls::-webkit-scrollbar {
-  width: 8px;
-}
-
-.editor-controls::-webkit-scrollbar-track {
-  background: #f5f5f5;
-}
-
-.editor-controls::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 4px;
-}
-
-.editor-controls::-webkit-scrollbar-thumb:hover {
-  background: #666;
-}
-
-.control-group {
-  width: calc(100% - 8px);
-  min-width: 200px;
-  margin-right: 8px;
-  background-color: white;
-  border-radius: 8px;
-  padding: 15px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.control-group:hover {
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
-.button-group {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  background-color: white;
-  padding: 10px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.button-group button {
-  padding: 8px 12px;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.3s ease;
-}
-
-.button-group button:hover {
-  background-color: #45a049;
-  transform: translateY(-1px);
-}
-
-.control-group h3 {
-  margin: 0 0 15px 0;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #4caf50;
-  color: #333;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.inner-circle-list,
-.company-list,
-.stamp-type-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.inner-circle-item,
-.company-item,
-.stamp-type-item {
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 6px;
-  padding: 12px;
-  transition: all 0.3s ease;
-}
-
-.inner-circle-item:hover,
-.company-item:hover,
-.stamp-type-item:hover {
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
-
-.editor-controls label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
-  font-size: 14px;
-  color: #555;
-}
-
-.editor-controls input[type='text'],
-.editor-controls input[type='number'],
-.editor-controls select {
-  padding: 6px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.3s ease;
-}
-
-.editor-controls input[type='text']:focus,
-.editor-controls input[type='number']:focus,
-.editor-controls select:focus {
-  border-color: #4caf50;
-  outline: none;
-}
-
-.editor-controls input[type='range'] {
-  -webkit-appearance: none;
-  width: 100%;
-  height: 6px;
-  background: #ddd;
-  border-radius: 3px;
-  outline: none;
-}
-
-.editor-controls input[type='range']::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  background: #4caf50;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.editor-controls input[type='range']::-webkit-slider-thumb:hover {
-  background: #45a049;
-}
-
-.checkbox-label {
-  flex-direction: row !important;
-  align-items: center;
-  cursor: pointer;
-}
-
-.checkbox-label input[type='checkbox'] {
-  margin-right: 8px;
-  cursor: pointer;
-}
-
-.add-button,
-.delete-button {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 4px;
-  color: white;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.add-button {
-  background-color: #4caf50;
-  width: 100%;
-  margin-top: 8px;
-}
-
-.delete-button {
-  background-color: #dc3545;
-}
-
-.add-button:hover {
-  background-color: #45a049;
-}
-
-.delete-button:hover {
-  background-color: #c82333;
-}
-
-.inner-circle-header,
-.company-header,
-.stamp-type-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #eee;
-}
-
-.canvas-container {
-  flex: 1;
-  background-color: #f8f9fa;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-  overflow: hidden;
-  padding-top: 40px; /* 根据免责声明的高度调整 */
-}
-
-canvas {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  border-radius: 8px;
-  background-color: white;
-}
-
-@media (max-width: 1200px) {
-  .container {
-    flex-direction: column;
-  }
-
-  .editor-controls {
-    width: 100%;
-    max-height: 50vh;
-  }
-
-  .canvas-container {
-    height: 50vh;
-  }
-}
-
-.control-group button {
-  width: 100%;
-  margin-top: 8px;
-}
-
-select {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.3s ease;
-}
-
-select option {
-  padding: 8px;
-}
-
-select option:hover {
-  background-color: #f5f5f5;
-}
-
-.font-input-group {
-  position: relative;
-  width: 100%;
-  display: flex;
-  gap: 8px;
-}
-
-.font-select {
-  flex: 1;
-  padding: 6px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.3s ease;
-  cursor: pointer;
-}
-
-.font-input {
-  flex: 1;
-  padding: 6px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  transition: border-color 0.3s ease;
-}
-
-.font-select:hover,
-.font-input:hover {
-  border-color: #4caf50;
-}
-
-.font-select:focus,
-.font-input:focus {
-  border-color: #4caf50;
-  outline: none;
-}
-
-.font-select option {
-  padding: 8px;
-  font-size: 14px;
-}
-
-.font-select,
-.font-input {
-  font-family: var(--current-font, inherit);
-}
-
-.group-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  padding: 8px 0;
-  user-select: none;
-}
-
-.group-header h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #333;
-}
-
-.expand-icon {
-  transition: transform 0.3s ease;
-  font-size: 12px;
-  color: #666;
-}
-
-.expand-icon.expanded {
-  transform: rotate(180deg);
-}
-
-.group-content {
-  transition: all 0.3s ease-in-out;
-  overflow: hidden;
-}
-
-/* 修改法律免责说明样式 */
-.legal-disclaimer {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 2000;
-  background-color: rgba(255, 241, 240, 0.98);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  padding: 12px 20px;
-  transition: all 0.3s ease;
-}
-
-.disclaimer-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.warning-icon {
-  font-size: 24px;
-  color: #ff4d4f;
-  flex-shrink: 0;
-}
-
-.warning-text {
-  flex: 1;
-}
-
-.warning-text h3 {
-  color: #ff4d4f;
-  margin: 0 0 8px 0;
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.warning-text p {
-  color: #cf1322;
-  margin: 4px 0;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.warning-text strong {
-  font-size: 16px;
-}
-
-/* 添加法律提示弹窗样式 */
-.legal-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 2100;
-}
-
-.legal-dialog {
-  background-color: white;
-  padding: 24px;
-  border-radius: 8px;
-  max-width: 500px;
-  width: 90%;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.legal-dialog h3 {
-  color: #ff4d4f;
-  margin: 0 0 16px 0;
-  font-size: 20px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.legal-content {
-  margin-bottom: 20px;
-}
-
-.legal-content p {
-  color: #cf1322;
-  margin-bottom: 12px;
-}
-
-.legal-content ol {
-  color: #666;
-  padding-left: 20px;
-  margin: 0;
-}
-
-.legal-content li {
-  margin-bottom: 8px;
-  line-height: 1.5;
-}
-
-.dialog-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.cancel-button,
-.confirm-button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.3s ease;
-}
-
-.cancel-button {
-  background-color: #f5f5f5;
-  color: #666;
-}
-
-.confirm-button {
-  background-color: #4caf50;
-  color: white;
-}
-
-.cancel-button:hover {
-  background-color: #e8e8e8;
-}
-
-.confirm-button:hover {
-  background-color: #45a049;
-}
 </style>
