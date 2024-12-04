@@ -9,7 +9,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build output
-# dist/
 build/
 
 # Dependency directories
@@ -33,5 +32,4 @@ jspm_packages/
 *.ntvs*
 *.njsproj
 *.sln
-package-lock.json
 .DS_Store
